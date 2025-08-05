@@ -1,0 +1,37 @@
+@GateSale.API_HostAddress = http://localhost:5221
+
+GET {{GateSale.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
+
+# Forgot Password flow
+
+### Request password reset code
+POST {{GateSale.API_HostAddress}}/api/Auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "user@example.com"
+}
+
+### Verify reset code
+POST {{GateSale.API_HostAddress}}/api/Auth/verify-reset-code
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "code": "1234" 
+}
+
+### Reset password with code
+POST {{GateSale.API_HostAddress}}/api/Auth/reset-password
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "code": "1234",
+  "newPassword": "NewPassword123!"
+}
+
+###

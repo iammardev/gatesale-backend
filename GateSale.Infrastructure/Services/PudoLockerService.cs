@@ -11,6 +11,7 @@ using GateSale.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Newtonsoft.Json;
 
 namespace GateSale.Infrastructure.Services
 {
@@ -20,17 +21,20 @@ namespace GateSale.Infrastructure.Services
         private readonly PudoSettings _pudoSettings;
         private readonly GateSaleDbContext _dbContext;
         private readonly ILogger<PudoLockerService> _logger;
+        private readonly IOrderTrackingService _orderTrackingService;
 
         public PudoLockerService(
             HttpClient httpClient,
             IOptions<PudoSettings> pudoSettings,
             GateSaleDbContext dbContext,
-            ILogger<PudoLockerService> logger)
+            ILogger<PudoLockerService> logger,
+            IOrderTrackingService? orderTrackingService = null)
         {
             _httpClient = httpClient;
             _pudoSettings = pudoSettings.Value;
             _dbContext = dbContext;
             _logger = logger;
+            _orderTrackingService = orderTrackingService ?? throw new ArgumentNullException(nameof(orderTrackingService));
 
             // Configure HTTP client
             _httpClient.BaseAddress = new Uri(_pudoSettings.ApiBaseUrl);
@@ -300,6 +304,13 @@ namespace GateSale.Infrastructure.Services
                 
                 await _dbContext.SaveChangesAsync();
                 
+                // Log tracking event
+                await _orderTrackingService.LogOrderTrackingEvent(
+                    orderId,
+                    "LockerAssigned",
+                    $"Order assigned to locker {lockerCode} at {locker.Location}",
+                    locker.Location);
+                
                 return true;
             }
             catch (Exception ex)
@@ -322,7 +333,30 @@ namespace GateSale.Infrastructure.Services
                     _logger.LogError("Order {OrderId} not found when generating access code", orderId);
                     throw new Exception($"Order {orderId} not found");
                 }
+
+                // Check if sandbox mode is enabled
+                if (_pudoSettings.UseSandbox)
+                {
+                    _logger.LogInformation("Using sandbox mode - returning mock access code for locker {LockerCode}", lockerCode);
+                    
+                    // Generate a mock access code
+                    var mockAccessCode = $"MOCK-{new Random().Next(100000, 999999)}";
+                    
+                    // Update order status
+                    order.Status = OrderStatus.ReadyForPickup;
+                    await _dbContext.SaveChangesAsync();
+                    
+                    // Log tracking event
+                    await _orderTrackingService.LogOrderTrackingEvent(
+                        orderId,
+                        "AccessCodeGenerated",
+                        "Access code generated for package pickup (mock)",
+                        null);
+                    
+                    return mockAccessCode;
+                }
                 
+                // If not in sandbox mode, call the real API
                 var requestBody = new
                 {
                     LockerCode = lockerCode,
@@ -352,6 +386,13 @@ namespace GateSale.Infrastructure.Services
                 order.Status = OrderStatus.ReadyForPickup;
                 await _dbContext.SaveChangesAsync();
                 
+                // Log tracking event
+                await _orderTrackingService.LogOrderTrackingEvent(
+                    orderId,
+                    "AccessCodeGenerated",
+                    "Access code generated for package pickup",
+                    null);
+                
                 return result.AccessCode;
             }
             catch (Exception ex)
@@ -366,6 +407,25 @@ namespace GateSale.Infrastructure.Services
         {
             try
             {
+                // Check if sandbox mode is enabled
+                if (_pudoSettings.UseSandbox)
+                {
+                    _logger.LogInformation("Using sandbox mode - simulating locker release for {LockerCode}", lockerCode);
+                    
+                    // Update locker status in our database
+                    var sandboxLocker = await _dbContext.Lockers
+                        .FirstOrDefaultAsync(l => l.LockerCode == lockerCode);
+                    
+                    if (sandboxLocker != null)
+                    {
+                        sandboxLocker.Status = LockerStatus.Available;
+                        await _dbContext.SaveChangesAsync();
+                    }
+                    
+                    return true;
+                }
+                
+                // If not in sandbox mode, call the real API
                 var requestBody = new
                 {
                     LockerCode = lockerCode,
@@ -382,12 +442,12 @@ namespace GateSale.Infrastructure.Services
                 }
                 
                 // Update locker status in our database
-                var locker = await _dbContext.Lockers
+                var apiLocker = await _dbContext.Lockers
                     .FirstOrDefaultAsync(l => l.LockerCode == lockerCode);
                 
-                if (locker != null)
+                if (apiLocker != null)
                 {
-                    locker.Status = LockerStatus.Available;
+                    apiLocker.Status = LockerStatus.Available;
                     await _dbContext.SaveChangesAsync();
                 }
                 
@@ -464,12 +524,145 @@ namespace GateSale.Infrastructure.Services
                 
                 await _dbContext.SaveChangesAsync();
                 
+                // Log tracking event
+                await _orderTrackingService.LogOrderTrackingEvent(
+                    orderId,
+                    "PackagePickedUp",
+                    $"Package picked up from locker {lockerCode} at {pickupTime}",
+                    order.Locker.Location);
+                
                 _logger.LogInformation("Order {OrderId} completed with pickup from locker {LockerCode}", 
                     orderId, lockerCode);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error processing order pickup confirmation for order {OrderId}", orderId);
+            }
+        }
+        
+        public async Task ProcessWebhookEvent(PudoWebhookEvent webhookEvent)
+        {
+            try
+            {
+                // Log the webhook event
+                await LogWebhookEvent(
+                    webhookEvent.EventType, 
+                    JsonConvert.SerializeObject(webhookEvent), 
+                    false);
+                
+                var processingResult = string.Empty;
+                
+                switch (webhookEvent.EventType)
+                {
+                    case PudoEventTypes.LockerStatusChange:
+                        if (Enum.TryParse<LockerStatus>(webhookEvent.Status, true, out var newStatus))
+                        {
+                            await ProcessLockerStatusUpdate(
+                                webhookEvent.LockerCode, 
+                                newStatus, 
+                                webhookEvent.TransactionId ?? string.Empty);
+                            
+                            processingResult = $"Updated locker {webhookEvent.LockerCode} status to {newStatus}";
+                        }
+                        break;
+                        
+                    case PudoEventTypes.PackageDropped:
+                        // Find order by reference number
+                        var orderByRef = await _dbContext.Orders
+                            .FirstOrDefaultAsync(o => o.OrderNumber == webhookEvent.OrderReference);
+                            
+                        if (orderByRef != null)
+                        {
+                            await _orderTrackingService.UpdateOrderStatus(
+                                orderByRef.Id, 
+                                OrderStatus.ReadyForPickup);
+                                
+                            await _orderTrackingService.LogOrderTrackingEvent(
+                                orderByRef.Id,
+                                "PackageDropped",
+                                $"Package dropped at locker {webhookEvent.LockerCode}",
+                                null);
+                                
+                            processingResult = $"Updated order {orderByRef.Id} status to ReadyForPickup";
+                        }
+                        break;
+                        
+                    case PudoEventTypes.PackagePickedUp:
+                        // Find order by reference number
+                        var orderForPickup = await _dbContext.Orders
+                            .FirstOrDefaultAsync(o => o.OrderNumber == webhookEvent.OrderReference);
+                            
+                        if (orderForPickup != null)
+                        {
+                            await ProcessOrderPickupConfirmation(
+                                orderForPickup.Id,
+                                webhookEvent.LockerCode,
+                                webhookEvent.Timestamp);
+                                
+                            processingResult = $"Processed pickup for order {orderForPickup.Id}";
+                        }
+                        break;
+                        
+                    case PudoEventTypes.AccessCodeGenerated:
+                        processingResult = $"Access code generated for locker {webhookEvent.LockerCode}";
+                        break;
+                        
+                    case PudoEventTypes.AccessCodeUsed:
+                        processingResult = $"Access code used for locker {webhookEvent.LockerCode}";
+                        break;
+                        
+                    default:
+                        processingResult = $"Unhandled event type: {webhookEvent.EventType}";
+                        break;
+                }
+                
+                // Update webhook log with processing result
+                await LogWebhookEvent(
+                    webhookEvent.EventType,
+                    JsonConvert.SerializeObject(webhookEvent),
+                    true,
+                    processingResult);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing webhook event {EventType}", webhookEvent.EventType);
+                
+                // Log error in webhook log
+                await LogWebhookEvent(
+                    webhookEvent.EventType,
+                    JsonConvert.SerializeObject(webhookEvent),
+                    false,
+                    null,
+                    ex.Message);
+            }
+        }
+        
+        public async Task LogWebhookEvent(
+            string eventType, 
+            string rawPayload, 
+            bool isProcessed = false, 
+            string? result = null, 
+            string? errorMessage = null)
+        {
+            try
+            {
+                var webhookLog = new PudoWebhookLog
+                {
+                    EventType = eventType,
+                    RawPayload = rawPayload,
+                    IsProcessed = isProcessed,
+                    ReceivedAt = DateTime.UtcNow,
+                    ProcessedAt = isProcessed ? DateTime.UtcNow : null,
+                    ProcessingResult = result,
+                    ErrorMessage = errorMessage
+                };
+                
+                _dbContext.PudoWebhookLogs.Add(webhookLog);
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error logging webhook event");
             }
         }
 
@@ -487,10 +680,34 @@ namespace GateSale.Infrastructure.Services
             };
         }
         
-        private bool VerifyWebhookSignature(string transactionId)
+        public async Task<bool> VerifyWebhookSignature(string payload, string signature)
         {
             // Implementation would depend on Pudo's webhook signature verification method
-            // This is a simplified example
+            if (string.IsNullOrEmpty(_pudoSettings.WebhookSecret))
+                return false;
+
+            // In a real implementation, you would verify the webhook signature
+            // using HMAC or other cryptographic methods
+            try
+            {
+                // Example: HMAC-SHA256 verification
+                using var hmac = new System.Security.Cryptography.HMACSHA256(
+                    System.Text.Encoding.UTF8.GetBytes(_pudoSettings.WebhookSecret));
+                var computedHash = hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(payload));
+                var computedSignature = BitConverter.ToString(computedHash).Replace("-", "").ToLower();
+                
+                return signature.Equals(computedSignature, StringComparison.OrdinalIgnoreCase);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error verifying webhook signature");
+                return false;
+            }
+        }
+        
+        private bool VerifyWebhookSignature(string transactionId)
+        {
+            // Legacy method for backward compatibility
             if (string.IsNullOrEmpty(_pudoSettings.WebhookSecret))
                 return false;
 
@@ -521,4 +738,4 @@ namespace GateSale.Infrastructure.Services
         
         #endregion
     }
-} 
+}

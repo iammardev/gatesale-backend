@@ -7,6 +7,10 @@ namespace GateSale.Core.Interfaces
     public interface IProductService
     {
         /// <summary>
+        /// Searches for products based on the provided search parameters
+        /// </summary>
+        Task<ProductListDto> SearchProducts(ProductSearchDto searchDto);
+        /// <summary>
         /// Creates a new product
         /// </summary>
         Task<Guid> CreateProduct(CreateProductDto productDto, Guid sellerId);

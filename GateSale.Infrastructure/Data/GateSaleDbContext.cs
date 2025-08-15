@@ -16,6 +16,9 @@ namespace GateSale.Infrastructure.Data
         public DbSet<Transaction> Transactions { get; set; }
         public DbSet<Dispute> Disputes { get; set; }
         public DbSet<Locker> Lockers { get; set; }
+        public DbSet<UserLocker> UserLockers { get; set; }
+        public DbSet<OrderTrackingEvent> OrderTrackingEvents { get; set; }
+        public DbSet<PudoWebhookLog> PudoWebhookLogs { get; set; }
         public DbSet<EmailVerification> EmailVerifications { get; set; }
         public DbSet<ParentalConsent> ParentalConsents { get; set; }
         public DbSet<WhitelistedDomain> WhitelistedDomains { get; set; }
@@ -83,6 +86,28 @@ namespace GateSale.Infrastructure.Data
                 .HasOne(ud => ud.User)
                 .WithMany(u => u.Devices)
                 .HasForeignKey(ud => ud.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            modelBuilder.Entity<UserLocker>()
+                .HasOne(ul => ul.User)
+                .WithMany()
+                .HasForeignKey(ul => ul.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            modelBuilder.Entity<UserLocker>()
+                .HasOne(ul => ul.Locker)
+                .WithMany()
+                .HasForeignKey(ul => ul.LockerId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            modelBuilder.Entity<UserLocker>()
+                .HasIndex(ul => new { ul.UserId, ul.LockerId })
+                .IsUnique();
+                
+            modelBuilder.Entity<OrderTrackingEvent>()
+                .HasOne(ote => ote.Order)
+                .WithMany()
+                .HasForeignKey(ote => ote.OrderId)
                 .OnDelete(DeleteBehavior.Cascade);
         }
     }

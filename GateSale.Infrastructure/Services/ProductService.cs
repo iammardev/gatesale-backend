@@ -6,6 +6,7 @@ using GateSale.Infrastructure.Data;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Linq.Expressions;
 
 namespace GateSale.Infrastructure.Services
 {
@@ -23,6 +24,136 @@ namespace GateSale.Infrastructure.Services
             _context = context;
             _storageService = storageService;
             _logger = logger;
+        }
+        
+        public async Task<ProductListDto> SearchProducts(ProductSearchDto searchDto)
+        {
+            try
+            {
+                var query = _context.Products
+                    .Include(p => p.Seller)
+                    .Include(p => p.Images)
+                    .Where(p => p.Status == ProductStatus.Available);
+
+                // Create a dictionary to store relevance scores for each product
+                var productScores = new Dictionary<Guid, int>();
+                
+                // Get all products, with optional search filtering
+                IQueryable<Product> filteredQuery = query;
+                
+                if (!string.IsNullOrWhiteSpace(searchDto.Q))
+                {
+                    // Apply search query to title, category, and description with relevance scoring
+                    var searchTerm = searchDto.Q.ToLower();
+                    
+                    filteredQuery = query.Where(p => 
+                        p.Title.ToLower().Contains(searchTerm) || 
+                        p.Category.ToLower().Contains(searchTerm) || 
+                        p.Description.ToLower().Contains(searchTerm));
+                }
+                
+                var matchingProducts = await filteredQuery.ToListAsync();
+                
+                // Calculate relevance scores
+                foreach (var product in matchingProducts)
+                {
+                    int score = 0;
+                    
+                    // If search term is provided, calculate relevance score
+                    if (!string.IsNullOrWhiteSpace(searchDto.Q))
+                    {
+                        var searchTerm = searchDto.Q.ToLower();
+                        
+                        // Title match has highest priority (3 points)
+                        if (product.Title.ToLower().Contains(searchTerm))
+                        {
+                            score += 3;
+                        }
+                        
+                        // Category match has medium priority (2 points)
+                        if (product.Category.ToLower().Contains(searchTerm))
+                        {
+                            score += 2;
+                        }
+                        
+                        // Description match has lowest priority (1 point)
+                        if (product.Description.ToLower().Contains(searchTerm))
+                        {
+                            score += 1;
+                        }
+                    }
+                    
+                    productScores[product.Id] = score;
+                }
+                
+                // Filter by category if provided
+                if (!string.IsNullOrEmpty(searchDto.CategoryId))
+                {
+                    matchingProducts = matchingProducts
+                        .Where(p => p.Category.ToLower() == searchDto.CategoryId.ToLower())
+                        .ToList();
+                }
+                
+                // Filter by price range if provided
+                if (searchDto.MinPrice.HasValue)
+                {
+                    matchingProducts = matchingProducts
+                        .Where(p => p.Price >= searchDto.MinPrice.Value)
+                        .ToList();
+                }
+                
+                if (searchDto.MaxPrice.HasValue)
+                {
+                    matchingProducts = matchingProducts
+                        .Where(p => p.Price <= searchDto.MaxPrice.Value)
+                        .ToList();
+                }
+                
+                // Order by relevance score (descending) then by creation date (descending)
+                var orderedProducts = matchingProducts
+                    .OrderByDescending(p => productScores[p.Id])
+                    .ThenByDescending(p => p.CreatedAt)
+                    .Skip(searchDto.Offset)
+                    .Take(searchDto.Limit)
+                    .ToList();
+                
+                // Map to DTOs
+                var productDtos = orderedProducts.Select(p => new ProductDto
+                {
+                    Id = p.Id,
+                    Title = p.Title,
+                    Description = p.Description,
+                    Price = p.Price,
+                    Category = p.Category,
+                    Condition = p.Condition.ToString(),
+                    Status = p.Status.ToString(),
+                    CreatedAt = p.CreatedAt,
+                    Keywords = p.Keywords,
+                    SellerId = p.SellerId,
+                    SellerName = p.Seller.FullName,
+                    SellerSchool = p.Seller.School,
+                    Images = p.Images.Select(i => new ProductImageDto
+                    {
+                        Id = i.Id,
+                        ImageUrl = i.ImageUrl,
+                        Order = i.Order
+                    }).OrderBy(i => i.Order).ToList()
+                }).ToList();
+                
+                return new ProductListDto
+                {
+                    Products = productDtos,
+                    TotalCount = matchingProducts.Count,
+                    PageNumber = (searchDto.Offset / searchDto.Limit) + 1,
+                    PageSize = searchDto.Limit,
+                    TotalPages = (int)Math.Ceiling(matchingProducts.Count / (double)searchDto.Limit)
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error searching products with query: {SearchQuery}", searchDto.Q);
+                throw;
+            }
         }
 
         public async Task<Guid> CreateProduct(CreateProductDto productDto, Guid sellerId)

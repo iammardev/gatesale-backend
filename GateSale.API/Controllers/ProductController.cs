@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 
 namespace GateSale.API.Controllers
@@ -136,6 +137,42 @@ namespace GateSale.API.Controllers
             {
                 _logger.LogError(ex, "Error retrieving products");
                 return StatusCode(500, "An error occurred while retrieving products");
+            }
+        }
+        
+        [HttpGet("search")]
+        public async Task<IActionResult> SearchProducts([FromQuery] ProductSearchDto searchDto)
+        {
+            try
+            {
+                if (searchDto.Limit > 100)
+                {
+                    searchDto.Limit = 100; // Enforce maximum limit
+                }
+                
+                _logger.LogInformation("Searching products with query: {SearchQuery}, Category: {Category}, PriceRange: {MinPrice}-{MaxPrice}, Pagination: {Offset}/{Limit}", 
+                    searchDto.Q ?? "None", 
+                    searchDto.CategoryId ?? "Any", 
+                    searchDto.MinPrice?.ToString() ?? "Any", 
+                    searchDto.MaxPrice?.ToString() ?? "Any",
+                    searchDto.Offset,
+                    searchDto.Limit);
+                
+                var searchResults = await _productService.SearchProducts(searchDto);
+                
+                _logger.LogInformation("Search returned {Count} products", searchResults.Products.Count);
+                
+                return Ok(searchResults);
+            }
+            catch (ValidationException vex)
+            {
+                _logger.LogWarning(vex, "Validation error during product search");
+                return BadRequest(vex.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error searching products");
+                return StatusCode(500, "An error occurred while searching for products");
             }
         }
 

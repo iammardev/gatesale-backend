@@ -13,6 +13,7 @@ using Microsoft.OpenApi.Models;
 using Amazon.Extensions.NETCore.Setup;
 using Amazon.CognitoIdentityProvider;
 using Amazon;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -106,12 +107,17 @@ builder.Services.AddAuthentication(options =>
     options.Authority = builder.Configuration["AWS:Cognito:Authority"];
     options.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidateIssuer = true,
-        ValidateAudience = true,
+        ValidateIssuer = builder.Environment.IsProduction(),
+        ValidateAudience = builder.Environment.IsProduction(),
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
         ValidIssuer = builder.Configuration["Jwt:Issuer"],
-        ValidAudience = builder.Configuration["Jwt:Audience"]
+        ValidAudience = builder.Configuration["Jwt:Audience"],
+        // For development only - allow test tokens
+        IssuerSigningKey = !builder.Environment.IsProduction() 
+            ? new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
+                builder.Configuration["Jwt:Key"] ?? "YourSuperSecretKeyForDevelopmentPurposesOnly12345!@#$%"))
+            : null
     };
 });
 
@@ -120,7 +126,9 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IDomainValidationService, DomainValidationService>();
 builder.Services.AddScoped<ICognitoService, CognitoService>();
 builder.Services.AddScoped<IStorageService, S3StorageService>();
+builder.Services.AddScoped<IOrderTrackingService, OrderTrackingService>();
 builder.Services.AddScoped<IPudoLockerService, PudoLockerService>();
+builder.Services.AddScoped<IUserLockerService, UserLockerService>();
 builder.Services.AddScoped<IProductService, ProductService>();
 
 var app = builder.Build();

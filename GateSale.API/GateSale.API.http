@@ -1,11 +1,8 @@
 @GateSale.API_HostAddress = http://localhost:5221
 
-GET {{GateSale.API_HostAddress}}/weatherforecast/
-Accept: application/json
-
 ###
-
-# Forgot Password flow
+# Auth endpoints
+###
 
 ### Request password reset code
 POST {{GateSale.API_HostAddress}}/api/Auth/forgot-password
@@ -35,3 +32,174 @@ Content-Type: application/json
 }
 
 ###
+# Test endpoints for getting order IDs and tokens
+###
+
+### Get existing orders
+GET {{GateSale.API_HostAddress}}/api/Test/orders
+Accept: application/json
+
+### Create test order
+POST {{GateSale.API_HostAddress}}/api/Test/create-test-order
+Accept: application/json
+
+### Generate test JWT token
+GET {{GateSale.API_HostAddress}}/api/Test/generate-test-token
+Accept: application/json
+
+###
+# Locker endpoints
+###
+
+### Get nearby lockers
+GET {{GateSale.API_HostAddress}}/api/Locker/nearby?latitude=-26.050789097480514&longitude=28.023501693372644&radius=10
+Accept: application/json
+
+### Get specific locker by code
+GET {{GateSale.API_HostAddress}}/api/Locker/MOCK001
+Accept: application/json
+
+### Assign order to locker (replace with actual order ID from test endpoint)
+POST {{GateSale.API_HostAddress}}/api/Locker/assign/00000000-0000-0000-0000-000000000001
+Content-Type: application/json
+Authorization: Bearer YOUR_AUTH_TOKEN_HERE
+
+{
+  "lockerCode": "MOCK001"
+}
+
+### Generate access code for pickup (replace with actual order ID from test endpoint)
+POST {{GateSale.API_HostAddress}}/api/Locker/access-code/00000000-0000-0000-0000-000000000001
+Content-Type: application/json
+Authorization: Bearer YOUR_AUTH_TOKEN_HERE
+
+{
+  "lockerCode": "MOCK001"
+}
+
+### Release locker
+POST {{GateSale.API_HostAddress}}/api/Locker/release
+Content-Type: application/json
+Authorization: Bearer YOUR_AUTH_TOKEN_HERE
+
+{
+  "lockerCode": "MOCK001",
+  "accessCode": "123456"
+}
+
+###
+# User Locker endpoints
+###
+
+### Get user's favorite lockers
+GET {{GateSale.API_HostAddress}}/api/UserLocker/favorites
+Authorization: Bearer YOUR_AUTH_TOKEN_HERE
+
+### Get user's default locker
+GET {{GateSale.API_HostAddress}}/api/UserLocker/default
+Authorization: Bearer YOUR_AUTH_TOKEN_HERE
+
+### Get seller's dropoff lockers
+GET {{GateSale.API_HostAddress}}/api/UserLocker/seller/dropoff
+Authorization: Bearer YOUR_AUTH_TOKEN_HERE
+
+### Add favorite locker by code
+POST {{GateSale.API_HostAddress}}/api/UserLocker/favorites
+Content-Type: application/json
+Authorization: Bearer YOUR_AUTH_TOKEN_HERE
+
+{
+  "lockerCode": "MOCK001"
+}
+
+### Remove favorite locker
+DELETE {{GateSale.API_HostAddress}}/api/UserLocker/favorites/MOCK001
+Authorization: Bearer YOUR_AUTH_TOKEN_HERE
+
+### Set default locker
+POST {{GateSale.API_HostAddress}}/api/UserLocker/default
+Content-Type: application/json
+Authorization: Bearer YOUR_AUTH_TOKEN_HERE
+
+{
+  "lockerCode": "MOCK001"
+}
+
+### Set seller dropoff locker
+POST {{GateSale.API_HostAddress}}/api/UserLocker/seller/dropoff
+Content-Type: application/json
+Authorization: Bearer YOUR_AUTH_TOKEN_HERE
+
+{
+  "lockerCode": "MOCK001"
+}
+
+###
+# Order Tracking endpoints
+###
+
+### Get order tracking info (replace with actual order ID from test endpoint)
+GET {{GateSale.API_HostAddress}}/api/OrderTracking/00000000-0000-0000-0000-000000000001
+Authorization: Bearer YOUR_AUTH_TOKEN_HERE
+
+### Get order locker status (replace with actual order ID from test endpoint)
+GET {{GateSale.API_HostAddress}}/api/OrderTracking/00000000-0000-0000-0000-000000000001/locker-status
+Authorization: Bearer YOUR_AUTH_TOKEN_HERE
+
+### Update order status (replace with actual order ID from test endpoint)
+POST {{GateSale.API_HostAddress}}/api/OrderTracking/00000000-0000-0000-0000-000000000001/status
+Content-Type: application/json
+Authorization: Bearer YOUR_AUTH_TOKEN_HERE
+
+{
+  "status": 2,
+  "notes": "Order is now in transit to the locker"
+}
+
+### Log order event (replace with actual order ID from test endpoint)
+POST {{GateSale.API_HostAddress}}/api/OrderTracking/00000000-0000-0000-0000-000000000001/events
+Content-Type: application/json
+Authorization: Bearer YOUR_AUTH_TOKEN_HERE
+
+{
+  "eventType": "CustomEvent",
+  "description": "Package has been prepared for shipping",
+  "location": "Seller's location"
+}
+
+###
+# PUDO Webhook endpoints
+###
+
+### Simulate locker status webhook
+POST {{GateSale.API_HostAddress}}/api/PudoWebhook/status
+Content-Type: application/json
+
+{
+  "lockerCode": "MOCK001",
+  "status": "Occupied",
+  "transactionId": "tx_12345"
+}
+
+### Simulate pickup confirmation webhook (replace with actual order ID from test endpoint)
+POST {{GateSale.API_HostAddress}}/api/PudoWebhook/pickup
+Content-Type: application/json
+
+{
+  "orderId": "00000000-0000-0000-0000-000000000001",
+  "lockerCode": "MOCK001",
+  "pickupTime": "2023-08-15T14:30:00Z"
+}
+
+### Simulate generic webhook
+POST {{GateSale.API_HostAddress}}/api/PudoWebhook
+Content-Type: application/json
+X-Pudo-Signature: YOUR_SIGNATURE_HERE
+
+{
+  "eventType": "package_dropped",
+  "lockerCode": "MOCK001",
+  "orderReference": "ORDER123",
+  "transactionId": "tx_12345",
+  "timestamp": "2023-08-15T14:00:00Z"
+}

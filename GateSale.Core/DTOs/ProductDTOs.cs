@@ -27,6 +27,8 @@ namespace GateSale.Core.DTOs
         public string? Keywords { get; set; }
         
         public List<IFormFile>? Images { get; set; }
+        public string? SubCategory { get; set; }
+
     }
     
     public class UpdateProductDto
@@ -46,6 +48,8 @@ namespace GateSale.Core.DTOs
         
         [MaxLength(500)]
         public string? Keywords { get; set; }
+        public string? SubCategory { get; set; }
+
     }
     
     public class ProductDto
@@ -67,6 +71,8 @@ namespace GateSale.Core.DTOs
         
         // Images
         public List<ProductImageDto> Images { get; set; } = new();
+        public string? SubCategory { get; set; }
+
     }
     
     public class ProductImageDto

@@ -3,6 +3,7 @@ using System;
 using GateSale.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace GateSale.Infrastructure.Migrations
 {
     [DbContext(typeof(GateSaleDbContext))]
-    partial class GateSaleDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250910224633_AddSubCategoryToProduct")]
+    partial class AddSubCategoryToProduct
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,21 +24,6 @@ namespace GateSale.Infrastructure.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
-
-            modelBuilder.Entity("GateSale.Core.Entities.Category", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Categories");
-                });
 
             modelBuilder.Entity("GateSale.Core.Entities.Dispute", b =>
                 {
@@ -390,32 +378,6 @@ namespace GateSale.Infrastructure.Migrations
                     b.ToTable("PudoWebhookLogs");
                 });
 
-            modelBuilder.Entity("GateSale.Core.Entities.SubCategory", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("CategoryId")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("MaxPrice")
-                        .HasColumnType("numeric");
-
-                    b.Property<decimal>("MinPrice")
-                        .HasColumnType("numeric");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CategoryId");
-
-                    b.ToTable("SubCategories");
-                });
-
             modelBuilder.Entity("GateSale.Core.Entities.Transaction", b =>
                 {
                     b.Property<Guid>("Id")
@@ -735,17 +697,6 @@ namespace GateSale.Infrastructure.Migrations
                     b.Navigation("Product");
                 });
 
-            modelBuilder.Entity("GateSale.Core.Entities.SubCategory", b =>
-                {
-                    b.HasOne("GateSale.Core.Entities.Category", "Category")
-                        .WithMany("SubCategories")
-                        .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Category");
-                });
-
             modelBuilder.Entity("GateSale.Core.Entities.Transaction", b =>
                 {
                     b.HasOne("GateSale.Core.Entities.Order", "Order")
@@ -785,11 +736,6 @@ namespace GateSale.Infrastructure.Migrations
                     b.Navigation("Locker");
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("GateSale.Core.Entities.Category", b =>
-                {
-                    b.Navigation("SubCategories");
                 });
 
             modelBuilder.Entity("GateSale.Core.Entities.Locker", b =>

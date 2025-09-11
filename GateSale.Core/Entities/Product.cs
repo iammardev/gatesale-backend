@@ -12,6 +12,7 @@ namespace GateSale.Core.Entities
         public ProductCondition Condition { get; set; }
         public ProductStatus Status { get; set; } = ProductStatus.Available;
         public string? Keywords { get; set; }
+        public string? SubCategory { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }
         

@@ -22,6 +22,8 @@ namespace GateSale.Infrastructure.Data
         public DbSet<EmailVerification> EmailVerifications { get; set; }
         public DbSet<ParentalConsent> ParentalConsents { get; set; }
         public DbSet<WhitelistedDomain> WhitelistedDomains { get; set; }
+        public DbSet<Category> Categories { get; set; }
+        public DbSet<SubCategory> SubCategories { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -109,6 +111,13 @@ namespace GateSale.Infrastructure.Data
                 .WithMany()
                 .HasForeignKey(ote => ote.OrderId)
                 .OnDelete(DeleteBehavior.Cascade);
+            
+            modelBuilder.Entity<SubCategory>()
+                .HasOne(sc => sc.Category)
+                .WithMany(c => c.SubCategories)
+                .HasForeignKey(sc => sc.CategoryId)
+                .OnDelete(DeleteBehavior.Cascade);
+
         }
     }
 }

@@ -49,6 +49,7 @@ namespace GateSale.Infrastructure.Services
                     filteredQuery = query.Where(p => 
                         p.Title.ToLower().Contains(searchTerm) || 
                         p.Category.ToLower().Contains(searchTerm) || 
+                        (p.SubCategory != null && p.SubCategory.ToLower().Contains(searchTerm)) ||
                         p.Description.ToLower().Contains(searchTerm));
                 }
                 
@@ -72,6 +73,12 @@ namespace GateSale.Infrastructure.Services
                         
                         // Category match has medium priority (2 points)
                         if (product.Category.ToLower().Contains(searchTerm))
+                        {
+                            score += 2;
+                        }
+
+                        // SubCategory match also medium priority (2 points)
+                        if (!string.IsNullOrEmpty(product.SubCategory) && product.SubCategory.ToLower().Contains(searchTerm))
                         {
                             score += 2;
                         }
@@ -125,6 +132,7 @@ namespace GateSale.Infrastructure.Services
                     Description = p.Description,
                     Price = p.Price,
                     Category = p.Category,
+                    SubCategory = p.SubCategory,
                     Condition = p.Condition.ToString(),
                     Status = p.Status.ToString(),
                     CreatedAt = p.CreatedAt,
@@ -168,6 +176,7 @@ namespace GateSale.Infrastructure.Services
                     Description = productDto.Description,
                     Price = productDto.Price,
                     Category = productDto.Category,
+                    SubCategory = productDto.SubCategory,
                     Condition = (ProductCondition)productDto.Condition,
                     Keywords = productDto.Keywords,
                     SellerId = sellerId,
@@ -271,7 +280,8 @@ namespace GateSale.Infrastructure.Services
                     query = query.Where(p => 
                         p.Title.ToLower().Contains(searchTerm) || 
                         p.Description.ToLower().Contains(searchTerm) ||
-                        (p.Keywords != null && p.Keywords.ToLower().Contains(searchTerm)));
+                        (p.Keywords != null && p.Keywords.ToLower().Contains(searchTerm)) ||
+                        (p.SubCategory != null && p.SubCategory.ToLower().Contains(searchTerm)));
                 }
 
                 // Apply sorting
@@ -292,6 +302,7 @@ namespace GateSale.Infrastructure.Services
                         Description = p.Description,
                         Price = p.Price,
                         Category = p.Category,
+                        SubCategory = p.SubCategory,
                         Condition = p.Condition.ToString(),
                         Status = p.Status.ToString(),
                         CreatedAt = p.CreatedAt,
@@ -363,7 +374,8 @@ namespace GateSale.Infrastructure.Services
                     query = query.Where(p => 
                         p.Title.ToLower().Contains(searchTerm) || 
                         p.Description.ToLower().Contains(searchTerm) ||
-                        (p.Keywords != null && p.Keywords.ToLower().Contains(searchTerm)));
+                        (p.Keywords != null && p.Keywords.ToLower().Contains(searchTerm)) ||
+                        (p.SubCategory != null && p.SubCategory.ToLower().Contains(searchTerm)));
                 }
 
                 // Apply sorting
@@ -384,6 +396,7 @@ namespace GateSale.Infrastructure.Services
                         Description = p.Description,
                         Price = p.Price,
                         Category = p.Category,
+                        SubCategory = p.SubCategory,
                         Condition = p.Condition.ToString(),
                         Status = p.Status.ToString(),
                         CreatedAt = p.CreatedAt,
@@ -437,6 +450,7 @@ namespace GateSale.Infrastructure.Services
                     Description = product.Description,
                     Price = product.Price,
                     Category = product.Category,
+                    SubCategory = product.SubCategory,
                     Condition = product.Condition.ToString(),
                     Status = product.Status.ToString(),
                     CreatedAt = product.CreatedAt,
@@ -490,6 +504,11 @@ namespace GateSale.Infrastructure.Services
                 if (!string.IsNullOrEmpty(productDto.Category))
                 {
                     product.Category = productDto.Category;
+                }
+
+                if (!string.IsNullOrEmpty(productDto.SubCategory))
+                {
+                    product.SubCategory = productDto.SubCategory;
                 }
 
                 if (productDto.Condition.HasValue)
@@ -646,4 +665,4 @@ namespace GateSale.Infrastructure.Services
             return query;
         }
     }
-} 
+}

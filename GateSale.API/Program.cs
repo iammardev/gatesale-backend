@@ -130,6 +130,7 @@ builder.Services.AddScoped<IOrderTrackingService, OrderTrackingService>();
 builder.Services.AddScoped<IPudoLockerService, PudoLockerService>();
 builder.Services.AddScoped<IUserLockerService, UserLockerService>();
 builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<CategoryService>();
 
 var app = builder.Build();
 

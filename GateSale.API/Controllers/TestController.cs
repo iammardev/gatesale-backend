@@ -41,7 +41,7 @@ namespace GateSale.API.Controllers
                         o.OrderDate,
                         Status = o.Status.ToString(),
                         BuyerId = o.BuyerId,
-                        LockerId = o.LockerId
+                        BuyerLockerId = o.BuyerLockerId
                     })
                     .Take(10)
                     .ToListAsync();
@@ -89,7 +89,7 @@ namespace GateSale.API.Controllers
                     OrderNumber = $"TEST-{DateTime.UtcNow.Ticks}",
                     OrderDate = DateTime.UtcNow,
                     TotalAmount = 100.00m,
-                    Status = OrderStatus.Pending,
+                    Status = OrderStatus.PaidAwaitingShipment,
                     BuyerId = user.Id,
                     Buyer = user
                 };

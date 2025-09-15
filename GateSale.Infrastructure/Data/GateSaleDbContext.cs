@@ -15,6 +15,7 @@ namespace GateSale.Infrastructure.Data
         public DbSet<OrderItem> OrderItems { get; set; }
         public DbSet<Transaction> Transactions { get; set; }
         public DbSet<Dispute> Disputes { get; set; }
+        public DbSet<DisputeEvidence> DisputeEvidence { get; set; }
         public DbSet<Locker> Lockers { get; set; }
         public DbSet<UserLocker> UserLockers { get; set; }
         public DbSet<OrderTrackingEvent> OrderTrackingEvents { get; set; }
@@ -66,6 +67,24 @@ namespace GateSale.Infrastructure.Data
                 .HasForeignKey(o => o.BuyerId)
                 .OnDelete(DeleteBehavior.Cascade);
                 
+            modelBuilder.Entity<Order>()
+                .HasOne(o => o.Seller)
+                .WithMany()
+                .HasForeignKey(o => o.SellerId)
+                .OnDelete(DeleteBehavior.NoAction);
+                
+            modelBuilder.Entity<Order>()
+                .HasOne(o => o.BuyerLocker)
+                .WithMany()
+                .HasForeignKey(o => o.BuyerLockerId)
+                .OnDelete(DeleteBehavior.NoAction);
+                
+            modelBuilder.Entity<Order>()
+                .HasOne(o => o.SellerLocker)
+                .WithMany()
+                .HasForeignKey(o => o.SellerLockerId)
+                .OnDelete(DeleteBehavior.NoAction);
+                
             modelBuilder.Entity<OrderItem>()
                 .HasOne(oi => oi.Order)
                 .WithMany(o => o.Items)
@@ -82,6 +101,18 @@ namespace GateSale.Infrastructure.Data
                 .HasOne(d => d.Order)
                 .WithOne(o => o.Dispute)
                 .HasForeignKey<Dispute>(d => d.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            modelBuilder.Entity<Dispute>()
+                .HasOne(d => d.ReviewedBy)
+                .WithMany()
+                .HasForeignKey(d => d.ReviewedById)
+                .OnDelete(DeleteBehavior.NoAction);
+                
+            modelBuilder.Entity<DisputeEvidence>()
+                .HasOne(de => de.Dispute)
+                .WithMany(d => d.Evidence)
+                .HasForeignKey(de => de.DisputeId)
                 .OnDelete(DeleteBehavior.Cascade);
                 
             modelBuilder.Entity<UserDevice>()

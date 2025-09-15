@@ -296,8 +296,8 @@ namespace GateSale.Infrastructure.Services
                 }
                 
                 // Assign locker to order
-                order.LockerId = locker.Id;
-                order.Locker = locker;
+                order.BuyerLockerId = locker.Id;
+                order.BuyerLocker = locker;
                 
                 // Update order status
                 order.Status = OrderStatus.InTransit;
@@ -343,7 +343,7 @@ namespace GateSale.Infrastructure.Services
                     var mockAccessCode = $"MOCK-{new Random().Next(100000, 999999)}";
                     
                     // Update order status
-                    order.Status = OrderStatus.ReadyForPickup;
+                    order.Status = OrderStatus.Delivered;
                     await _dbContext.SaveChangesAsync();
                     
                     // Log tracking event
@@ -383,7 +383,7 @@ namespace GateSale.Infrastructure.Services
                 }
                 
                 // Update order status
-                order.Status = OrderStatus.ReadyForPickup;
+                order.Status = OrderStatus.Delivered;
                 await _dbContext.SaveChangesAsync();
                 
                 // Log tracking event
@@ -499,7 +499,7 @@ namespace GateSale.Infrastructure.Services
             try
             {
                 var order = await _dbContext.Orders
-                    .Include(o => o.Locker)
+                    .Include(o => o.BuyerLocker)
                     .FirstOrDefaultAsync(o => o.Id == orderId);
                 
                 if (order == null)
@@ -509,7 +509,7 @@ namespace GateSale.Infrastructure.Services
                 }
                 
                 // Verify the order is assigned to the correct locker
-                if (order.Locker == null || order.Locker.LockerCode != lockerCode)
+                if (order.BuyerLocker == null || order.BuyerLocker.LockerCode != lockerCode)
                 {
                     _logger.LogWarning("Order {OrderId} is not assigned to locker {LockerCode}", orderId, lockerCode);
                     return;
@@ -520,7 +520,7 @@ namespace GateSale.Infrastructure.Services
                 order.CompletedAt = pickupTime;
                 
                 // Update locker status
-                order.Locker.Status = LockerStatus.Available;
+                order.BuyerLocker.Status = LockerStatus.Available;
                 
                 await _dbContext.SaveChangesAsync();
                 
@@ -529,7 +529,7 @@ namespace GateSale.Infrastructure.Services
                     orderId,
                     "PackagePickedUp",
                     $"Package picked up from locker {lockerCode} at {pickupTime}",
-                    order.Locker.Location);
+                    order.BuyerLocker.Location);
                 
                 _logger.LogInformation("Order {OrderId} completed with pickup from locker {LockerCode}", 
                     orderId, lockerCode);
@@ -575,7 +575,7 @@ namespace GateSale.Infrastructure.Services
                         {
                             await _orderTrackingService.UpdateOrderStatus(
                                 orderByRef.Id, 
-                                OrderStatus.ReadyForPickup);
+                                OrderStatus.Delivered);
                                 
                             await _orderTrackingService.LogOrderTrackingEvent(
                                 orderByRef.Id,

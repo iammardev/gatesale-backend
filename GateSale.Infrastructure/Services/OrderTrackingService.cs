@@ -24,7 +24,7 @@ namespace GateSale.Infrastructure.Services
         public async Task<OrderTrackingInfo> GetOrderTrackingInfo(Guid orderId)
         {
             var order = await _dbContext.Orders
-                .Include(o => o.Locker)
+                .Include(o => o.BuyerLocker)
                 .FirstOrDefaultAsync(o => o.Id == orderId);
 
             if (order == null)
@@ -54,16 +54,16 @@ namespace GateSale.Infrastructure.Services
                 }).ToList()
             };
 
-            if (order.Locker != null)
+            if (order.BuyerLocker != null)
             {
                 trackingInfo.Locker = new LockerInfo
                 {
-                    LockerCode = order.Locker.LockerCode,
-                    Location = order.Locker.Location,
-                    Description = order.Locker.Description,
-                    Status = order.Locker.Status,
-                    Latitude = order.Locker.Latitude,
-                    Longitude = order.Locker.Longitude
+                    LockerCode = order.BuyerLocker.LockerCode,
+                    Location = order.BuyerLocker.Location,
+                    Description = order.BuyerLocker.Description,
+                    Status = order.BuyerLocker.Status,
+                    Latitude = order.BuyerLocker.Latitude,
+                    Longitude = order.BuyerLocker.Longitude
                 };
             }
 
@@ -73,22 +73,22 @@ namespace GateSale.Infrastructure.Services
         public async Task<LockerInfo?> GetOrderLockerStatus(Guid orderId)
         {
             var order = await _dbContext.Orders
-                .Include(o => o.Locker)
+                .Include(o => o.BuyerLocker)
                 .FirstOrDefaultAsync(o => o.Id == orderId);
 
-            if (order == null || order.Locker == null)
+            if (order == null || order.BuyerLocker == null)
             {
                 return null;
             }
 
             return new LockerInfo
             {
-                LockerCode = order.Locker.LockerCode,
-                Location = order.Locker.Location,
-                Description = order.Locker.Description,
-                Status = order.Locker.Status,
-                Latitude = order.Locker.Latitude,
-                Longitude = order.Locker.Longitude
+                LockerCode = order.BuyerLocker.LockerCode,
+                Location = order.BuyerLocker.Location,
+                Description = order.BuyerLocker.Description,
+                Status = order.BuyerLocker.Status,
+                Latitude = order.BuyerLocker.Latitude,
+                Longitude = order.BuyerLocker.Longitude
             };
         }
 
@@ -108,7 +108,7 @@ namespace GateSale.Infrastructure.Services
             {
                 order.CompletedAt = DateTime.UtcNow;
             }
-            else if (newStatus == OrderStatus.Cancelled && !order.CancelledAt.HasValue)
+            else if (newStatus == OrderStatus.CancelledBySeller && !order.CancelledAt.HasValue)
             {
                 order.CancelledAt = DateTime.UtcNow;
             }

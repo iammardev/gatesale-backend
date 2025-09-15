@@ -131,6 +131,9 @@ builder.Services.AddScoped<IPudoLockerService, PudoLockerService>();
 builder.Services.AddScoped<IUserLockerService, UserLockerService>();
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<CategoryService>();
+builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<IPaymentService, OzowPaymentService>();
+builder.Services.AddHttpClient<IPaymentService, OzowPaymentService>();
 
 var app = builder.Build();
 

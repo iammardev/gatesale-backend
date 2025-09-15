@@ -70,7 +70,7 @@ namespace GateSale.API.Middleware
             }
 
             // Skip check if the user is not authenticated
-            if (!context.User.Identity?.IsAuthenticated ?? true)
+            if (context.User.Identity == null || !context.User.Identity.IsAuthenticated)
             {
                 await _next(context);
                 return;

@@ -2,11 +2,21 @@ namespace GateSale.Core.Enums
 {
     public enum ProductStatus
     {
-        Available = 0,
-        Sold = 1,
-        Reserved = 2,
-        Inactive = 3,
-        Deleted = 4
+        // Listing Status
+        PendingApproval = 0,
+        Listed = 1,
+        FlaggedForReview = 2,
+        Rejected = 3,
+        ListingExpired = 4,
+        
+        // Sales Status
+        Available = 10,
+        Reserved = 11,
+        Sold = 12,
+        
+        // Administrative Status
+        Inactive = 20,
+        Deleted = 21
     }
     
     public enum ProductCondition
